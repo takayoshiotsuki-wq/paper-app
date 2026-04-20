@@ -8,7 +8,7 @@ st.set_page_config(page_title="APA Generator", page_icon="📄")
 # サイドバーの設定
 with st.sidebar:
     st.title("⚙️ 設定")
-    api_key = st.text_input("Gemini API Keyを入力", type="password")
+    api_key = st.text_input("Gemini API Keyを入力", type="password").strip()
     st.info("APIキーは Google AI Studio で取得したものを使用してください。")
 
 st.title("📄 論文 → APA参考文献作成")
