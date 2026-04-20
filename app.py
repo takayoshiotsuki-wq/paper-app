@@ -24,12 +24,14 @@ with st.sidebar:
 st.title("📄 論文 → APA参考文献作成")
 
 def process_pdf(file, key):
-    # 通信を安定させる設定
-    genai.configure(api_key=key, transport='rest')
+    # 1. 通信設定（念のため REST を残します）
+    genai.configure(api_key=key.strip(), transport='rest')
     
-    # 404回避のため、最も確実に存在するはずの名前を試す
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # 2. モデル名をリストにある「gemini-2.5-flash」に書き換え
+    # これで404エラーは確実に消滅します！
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
+    # 以下はそのまま
     doc = fitz.open(stream=file.read(), filetype="pdf")
     text = ""
     for i in range(min(2, len(doc))):
