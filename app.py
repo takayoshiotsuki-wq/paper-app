@@ -5,12 +5,22 @@ import google.generativeai as genai
 # --- ページ設定 ---
 st.set_page_config(page_title="APA Generator", page_icon="📄")
 
+# --- 履歴の初期化 ---
+if "history" not in st.session_state:
+    st.session_state.history = []
+
 # --- サイドバー設定 ---
 with st.sidebar:
     st.title("Settings")
     api_key = st.text_input("Gemini API Key", type="password").strip()
+    
+    st.markdown("---")
+    # 履歴リセットボタン
+    if st.button("履歴をリセット"):
+        st.session_state.history = []
+        st.rerun()
 
-# --- メイン画面 ---
+# --- メメイン画面 ---
 st.title("論文参考文献ジェネレーター")
 
 # --- 処理関数 ---
@@ -23,7 +33,6 @@ def process_pdf(file, key):
     for i in range(min(2, len(doc))):
         text += doc[i].get_text()
     
-    # AIへの指示をより厳格に：余計な文字を一切出さないよう指定
     prompt = f"""
     以下のテキストから論文情報を抽出し、2タイプの参考文献を作成してください。
     
@@ -42,7 +51,7 @@ def process_pdf(file, key):
     response = model.generate_content(prompt)
     return response.text
 
-# --- 実行部分 ---
+# --- アップロード・生成部分 ---
 uploaded_file = st.file_uploader("PDFを選択してください", type="pdf")
 
 if uploaded_file and api_key:
@@ -50,22 +59,42 @@ if uploaded_file and api_key:
         with st.spinner("解析中..."):
             try:
                 result = process_pdf(uploaded_file, api_key)
-                
-                # --- 区切り文字で分割 ---
                 parts = result.split('---')
                 
-                st.markdown("---") # 視覚的な区切り線
+                std_citation = parts[0].strip()
+                jp_citation = parts[1].strip() if len(parts) > 1 else ""
                 
-                # 標準APA形式
+                # --- 履歴に追加 (最新が上に来るように) ---
+                st.session_state.history.insert(0, {
+                    "filename": uploaded_file.name,
+                    "standard": std_citation,
+                    "japanese": jp_citation
+                })
+                
+                # 直近の結果を表示
+                st.markdown("---")
                 st.markdown("### 標準APA形式")
-                st.code(parts[0].strip(), language="text")
+                st.code(std_citation, language="text")
                 
-                # 日本語版APA形式
-                if len(parts) > 1:
-                    st.markdown("### 日本語版APA形式")
-                    st.code(parts[1].strip(), language="text")
+                st.markdown("### 日本語版APA形式")
+                st.code(jp_citation, language="text")
                 
             except Exception as e:
                 st.error(f"Error: {e}")
-elif uploaded_file and not api_key:
-    st.info("サイドバーにAPIキーを入力してください。")
+
+# --- 履歴表示セクション ---
+if st.session_state.history:
+    st.markdown("---")
+    st.title("履歴")
+    
+    for i, item in enumerate(st.session_state.history):
+        # ファイル名を強調
+        st.markdown(f"**ファイル: {item['filename']}**")
+        
+        # 1行でコピーしやすいようにまとめたテキスト
+        # 標準形式 [改行] 日本語形式 という構成
+        combined_text = f"{item['standard']}\n{item['japanese']}"
+        
+        # st.code のコピーボタンを利用して「1行（または1ブロック）コピー」を実現
+        st.code(combined_text, language="text")
+        st.markdown("---")
