@@ -2,23 +2,33 @@ import streamlit as st
 import fitz  # PyMuPDF
 import google.generativeai as genai
 
-# ページの設定
 st.set_page_config(page_title="APA Generator", page_icon="📄")
 
-# サイドバーの設定
 with st.sidebar:
     st.title("⚙️ 設定")
     api_key = st.text_input("Gemini API Keyを入力", type="password").strip()
-    st.info("APIキーは Google AI Studio で取得したものを使用してください。")
+    
+    # 【診断機能】今使えるモデルを表示するボタン
+    if st.button("利用可能なモデルを確認"):
+        if api_key:
+            try:
+                genai.configure(api_key=api_key)
+                models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                st.write("利用可能なモデル一覧:")
+                st.write(models)
+            except Exception as e:
+                st.error(f"モデル取得エラー: {e}")
+        else:
+            st.warning("先にAPIキーを入力してください。")
 
 st.title("📄 論文 → APA参考文献作成")
-st.write("PDFをアップロードすると、AIがAPA形式の参考文献リストを作成します。")
 
-# 処理関数
 def process_pdf(file, key):
-    # 通信設定を安定させ、モデルを Pro に変更します
-    genai.configure(api_key=key.strip(), transport='rest')
-    model = genai.GenerativeModel('gemini-1.5-pro') # ここを Pro に変更
+    # 通信を安定させる設定
+    genai.configure(api_key=key, transport='rest')
+    
+    # 404回避のため、最も確実に存在するはずの名前を試す
+    model = genai.GenerativeModel('gemini-1.5-flash')
     
     doc = fitz.open(stream=file.read(), filetype="pdf")
     text = ""
@@ -29,7 +39,6 @@ def process_pdf(file, key):
     response = model.generate_content(prompt)
     return response.text
 
-# --- ここから下（実行部分）は変更なしでOKですが、念のため載せておきます ---
 uploaded_file = st.file_uploader("PDFを選択してください", type="pdf")
 
 if uploaded_file and api_key:
@@ -40,6 +49,4 @@ if uploaded_file and api_key:
                 st.success("完了しました！")
                 st.code(result, language="text")
             except Exception as e:
-                st.error(f"エラー: {e}")
-elif uploaded_file and not api_key:
-    st.warning("左側のサイドバーにAPIキーを入力してください。")
+                st.error(f"エラーが発生しました。\n\n詳細: {e}")
